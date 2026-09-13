@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "{apiGatewayUrl}",
+      "url": "https://4657c5a3e6.execute-api.us-east-1.amazonaws.com/Workshop/sales",
       "description": "API Gateway endpoint",
       "variables": {}
     }

@@ -411,14 +411,65 @@ system_prompt = system_prompt + """
 
 '''START OF ACTIVITY 3a'''
 
+# Activity 3a: Sales tool on the AnyCompany-Sales-Product-Reviews gateway,
+# reached through AgentCore Identity (M2M). The Cognito client_id/client_secret
+# are NOT stored here; they live in the AgentCore Identity vault behind the
+# named OAuth2 credential provider. Activities 3b/3c add their targets to this
+# same gateway group. The connection is opened per request, gated by AVP.
+ACTIVITY3_OAUTH_PROVIDER_NAME = "sales-mcp-oauth-client"
+ACTIVITY3_GATEWAY_URL = "https://anycompany-sales-product-reviews-tool-56wq3glp2g.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
+ACTIVITY3_SCOPES = ["sales/read"]
+
+register_tool_group(
+    name="activity3_sales_products_reviews",
+    connect=lambda: MCPClient(
+        lambda: create_streamable_http_transport_agentcore_identity(
+            mcp_url=ACTIVITY3_GATEWAY_URL,
+            provider_name=ACTIVITY3_OAUTH_PROVIDER_NAME,
+            scopes=ACTIVITY3_SCOPES,
+        )
+    ),
+    resource_ids=["Sales-API-Gateway"],
+)
+logger.info("Activity 3a Sales tool registered (AgentCore Identity M2M)")
+
+system_prompt = system_prompt + """
+
+- **Sales retrieval**:
+   - Retrieve information about Sales done recently
+   - Do not return information about Sales information other than from this tool
+"""
 '''END OF ACTIVITY 3a'''
 
 '''START OF ACTIVITY 3b'''
 
+# Activity 3b: Products target added to the Activity 3 gateway. The connection
+# is already registered by Activity 3a; here we just declare the additional AVP
+# resource id (so pre-authorization knows this gateway can expose Products) and
+# extend the system prompt.
+add_group_resource_ids("activity3_sales_products_reviews", ["Products-API-Gateway"])
+
+system_prompt = system_prompt + """
+
+- **Products retrieval**:
+   - Retrieve  information about Products in the catalog
+   - Do not return information about Product information other than from this tool
+"""
 '''END OF ACTIVITY 3b'''
 
 '''START OF ACTIVITY 3c'''
 
+# Activity 3c: Customer Reviews target added to the Activity 3 gateway. The
+# connection is already registered by Activity 3a; here we just declare the
+# additional AVP resource id and extend the system prompt.
+add_group_resource_ids("activity3_sales_products_reviews", ["Customer-Reviews-Table"])
+
+system_prompt = system_prompt + """
+
+- **Customer Reviews retrieval**:
+   - Retrieve  information about Customer Reviews from the DynamoDB table "sec307-agent-identity-customer-reviews"
+   - Do not return information about Customer Reviews other than from this tool
+"""
 '''END OF ACTIVITY 3c'''
 
 '''START OF ACTIVITY 4'''
@@ -427,6 +478,12 @@ system_prompt = system_prompt + """
 
 '''START OF ACTIVITY 5'''
 
+# Activity 5: enable Amazon Verified Permissions dynamic tool filtering.
+# Authorization now happens per request BEFORE connecting to a gateway, so
+# outbound tokens are only minted for tool groups the calling user is allowed
+# to use, and the tool list passed to the model is filtered to the allowed set.
+set_avp_policy_store("4aSaSSkzh8XmMukLf5A8Fh")
+logger.info("Activity 5 dynamic tool filtering enabled (AVP policy store set)")
 '''END OF ACTIVITY 5'''
 
 '''START OF ACTIVITY 6'''
